@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CON CHIM – By Nguyễn Trung Tín</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --sky:   #87CEEB;
+    --sky2:  #B0E2FF;
+    --pipe:  #2ECC71;
+    --pipe2: #27AE60;
+    --ground:#8B6914;
+    --grass: #5D8A2C;
+    --text:  #1a1a2e;
+    --gold:  #F39C12;
+    --white: #ffffff;
+    --shadow:rgba(0,0,0,.18);
+  }
+
+  body {
+    background:#1a1a2e;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    font-family:'Segoe UI',system-ui,sans-serif;
+    overflow:hidden;
+    touch-action:none;
+  }
+
+  /* DARK MODE */
+  body.dark { background:#0a0a0f; }
+  body.dark canvas { filter:brightness(.85) saturate(.9); }
+
+  /* WRAPPER */
+  #wrapper {
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  /* CANVAS */
+  canvas {
+    display:block;
+    border-radius:16px;
+    box-shadow:0 8px 40px rgba(0,0,0,.5);
+    touch-action:none;
+  }
+
+  /* TOP BAR */
+  #topbar {
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+    width:100%;
+    justify-content:flex-end;
+  }
+
+  .icon-btn {
+    background:rgba(255,255,255,.12);
+    border:none;
+    border-radius:50%;
+    width:38px; height:38px;
+    cursor:pointer;
+    font-size:1.1rem;
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s;
+    backdrop-filter:blur(6px);
+  }
+  .icon-btn:hover { background:rgba(255,255,255,.22); }
+
+  /* OVERLAYS */
+  .overlay {
+    position:absolute;
+    top:0; left:0; right:0; bottom:0;
+    border-radius:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:rgba(10,10,20,.72);
+    backdrop-filter:blur(4px);
+  }
+
+  .overlay h1 {
+    font-size:clamp(2rem,8vw,3.2rem);
+    font-weight:900;
+    letter-spacing:4px;
+    color:#fff;
+    text-shadow:0 0 30px rgba(135,206,235,.6);
+    margin-bottom:4px;
+  }
+  .overlay .by {
+    font-size:.75rem;
+    color:rgba(255,255,255,.5);
+    letter-spacing:2px;
+    margin-bottom:32px;
+  }
+  .overlay .score-big {
+    font-size:clamp(3rem,12vw,5rem);
+    font-weight:900;
+    color:var(--gold);
+    text-shadow:0 0 20px rgba(243,156,18,.5);
+    line-height:1;
+  }
+  .overlay .score-label {
+    font-size:.8rem;
+    color:rgba(255,255,255,.6);
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .overlay .best {
+    font-size:1rem;
+    color:rgba(255,255,255,.7);
+    margin-bottom:32px;
+  }
+  .overlay .best span { color:var(--gold); font-weight:700; }
+
+  .play-btn {
+    background:linear-gradient(135deg,#2ECC71,#27AE60);
+    border:none;
+    border-radius:50px;
+    padding:14px 40px;
+    font-size:1.1rem;
+    font-weight:800;
+    color:#fff;
+    letter-spacing:2px;
+    cursor:pointer;
+    box-shadow:0 4px 20px rgba(46,204,113,.4);
+    transition:transform .15s, box-shadow .15s;
+    text-transform:uppercase;
+  }
+  .play-btn:hover { transform:translateY(-2px); box-shadow:0 6px 28px rgba(46,204,113,.5); }
+  .play-btn:active { transform:translateY(0); }
+
+  .hint {
+    margin-top:16px;
+    font-size:.75rem;
+    color:rgba(255,255,255,.4);
+    letter-spacing:1px;
+  }
+
+  #pause-overlay {
+    display:none;
+  }
+  #pause-overlay h2 {
+    font-size:2.5rem;
+    font-weight:900;
+    color:#fff;
+    letter-spacing:4px;
+  }
+  #pause-overlay p {
+    color:rgba(255,255,255,.5);
+    margin-top:10px;
+    font-size:.85rem;
+  }
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+  <div id="topbar">
+    <button class="icon-btn" id="btn-sound" title="Âm thanh">🔊</button>
+    <button class="icon-btn" id="btn-dark"  title="Dark Mode">🌙</button>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <!-- START -->
+  <div class="overlay" id="start-overlay">
+    <h1>CON CHIM</h1>
+    <div class="by">BY NGUYỄN TRUNG TÍN</div>
+    <button class="play-btn" id="btn-play">▶ PLAY</button>
+    <div class="hint">Click · Space · Chạm để bay</div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="overlay" id="gameover-overlay" style="display:none">
+    <h1>GAME OVER</h1>
+    <div class="by">BY NGUYỄN TRUNG TÍN</div>
+    <div class="score-label">Điểm của bạn</div>
+    <div class="score-big" id="go-score">0</div>
+    <div class="best">Best: <span id="go-best">0</span></div>
+    <button class="play-btn" id="btn-again">▶ PLAY AGAIN</button>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="overlay" id="pause-overlay">
+    <h2>⏸ PAUSE</h2>
+    <p>Nhấn P để tiếp tục</p>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CON CHIM — Flappy Bird Clone
+// By Nguyễn Trung Tín
+// =============================================
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+// ── Responsive canvas ──
+function resize() {
+  const maxW = Math.min(window.innerWidth - 24, 400);
+  const maxH = Math.min(window.innerHeight - 100, 640);
+  canvas.width  = Math.min(maxW, maxH * 0.65);
+  canvas.height = canvas.width / 0.65;
+}
+resize();
+window.addEventListener('resize', () => { resize(); if (!running) drawStatic(); });
+
+// ── Audio (Web Audio API) ──
+const AC = window.AudioContext || window.webkitAudioContext;
+let ac;
+let soundOn = true;
+
+function getAC() { if (!ac) ac = new AC(); return ac; }
+
+function beep(freq, type, dur, vol=0.3, when=0) {
+  if (!soundOn) return;
+  try {
+    const a = getAC();
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.connect(g); g.connect(a.destination);
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, a.currentTime + when);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + when + dur);
+    o.start(a.currentTime + when);
+    o.stop(a.currentTime + when + dur);
+  } catch(e){}
+}
+
+function sfxJump()  { beep(520,'sine',.12,.2); beep(680,'sine',.08,.15,.06); }
+function sfxScore() { beep(880,'sine',.08,.2); beep(1100,'sine',.08,.2,.07); beep(1320,'sine',.1,.2,.14); }
+function sfxDie()   { beep(300,'sawtooth',.15,.3); beep(180,'sawtooth',.25,.3,.1); beep(100,'square',.3,.2,.25); }
+
+// ── Game constants ──
+const GW = () => canvas.width;
+const GH = () => canvas.height;
+const GROUND_H  = () => Math.round(GH() * 0.12);
+const GRASS_H   = () => Math.round(GROUND_H() * 0.25);
+const PIPE_W    = () => Math.round(GW() * 0.14);
+const GAP       = () => Math.round(GH() * 0.38);
+const PIPE_SPEED= () => GW() * 0.003;
+const GRAVITY   = () => GH() * 0.0012;
+const JUMP_V    = () => -GH() * 0.022;
+const BIRD_R    = () => Math.round(GW() * 0.07);
+
+// ── Game state ──
+let bird, pipes, score, best, running, paused, gameOver, animId;
+let groundX = 0;
+let frameCount = 0;
+let lastTime = 0;
+let hitEffect = 0; // flash on death
+
+function initBird() {
+  return {
+    x:  GW() * 0.25,
+    y:  GH() * 0.42,
+    vy: 0,
+    angle: 0,
+    wing: 0,
+    wingDir: 1,
+  };
+}
+
+function initState() {
+  bird    = initBird();
+  pipes   = [];
+  score   = 0;
+  running = false;
+  paused  = false;
+  gameOver= false;
+  frameCount = 0;
+  hitEffect  = 0;
+  document.getElementById('gameover-overlay').style.display = 'none';
+  document.getElementById('pause-overlay').style.display    = 'none';
+}
+
+// ── Pipe factory ──
+function makePipe() {
+  const minTop = GH() * 0.15;
+  const maxTop = GH() - GROUND_H() - GAP() - minTop;
+  const topH   = minTop + Math.random() * (maxTop - minTop);
+  return {
+    x:     GW() + PIPE_W(),
+    topH,
+    passed: false,
+  };
+}
+
+// ── Best score ──
+function loadBest() { return parseInt(localStorage.getItem('conchim_best') || '0'); }
+function saveBest(s) { localStorage.setItem('conchim_best', s); }
+
+// ── Drawing helpers ──
+function drawSky() {
+  const grad = ctx.createLinearGradient(0,0,0,GH()-GROUND_H());
+  grad.addColorStop(0,'#4FC3F7');
+  grad.addColorStop(1,'#B3E5FC');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,GW(),GH()-GROUND_H());
+}
+
+function drawClouds() {
+  ctx.fillStyle='rgba(255,255,255,.75)';
+  // Static decorative clouds (shift with frameCount)
+  [[0.15,0.1,0.12],[0.55,0.07,0.09],[0.78,0.18,0.07]].forEach(([rx,ry,rs])=>{
+    const cx = ((rx*GW() - frameCount*0.3) % (GW()+100) + GW()+100) % (GW()+100) - 50;
+    const cy = ry*GH();
+    const r  = rs*GW();
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.arc(cx+r*.8,cy-r*.3,r*.7,0,Math.PI*2);
+    ctx.arc(cx+r*1.5,cy,r*.8,0,Math.PI*2);
+    ctx.fill();
+  });
+}
+
+function drawGround() {
+  const gh = GROUND_H();
+  const gsh= GRASS_H();
+  const y  = GH()-gh;
+  // Dirt
+  ctx.fillStyle='#A0522D';
+  ctx.fillRect(0,y,GW(),gh);
+  // Grass strip
+  ctx.fillStyle='#5D8A2C';
+  ctx.fillRect(0,y,GW(),gsh);
+  // Scrolling grass tufts
+  ctx.fillStyle='#4CAF50';
+  for(let i=0;i<8;i++){
+    const tx=((i/8*GW()-groundX*1.5)%GW()+GW())%GW();
+    ctx.beginPath();
+    ctx.moveTo(tx,y+gsh);
+    ctx.lineTo(tx-4,y);
+    ctx.lineTo(tx+4,y);
+    ctx.fill();
+  }
+}
+
+function drawPipe(pipe) {
+  const pw   = PIPE_W();
+  const botY = pipe.topH + GAP();
+  const botH = GH() - GROUND_H() - botY;
+  const grad1= ctx.createLinearGradient(pipe.x,0,pipe.x+pw,0);
+  grad1.addColorStop(0,'#27AE60'); grad1.addColorStop(.4,'#2ECC71'); grad1.addColorStop(1,'#1E8449');
+  ctx.fillStyle=grad1;
+  // Top pipe body
+  ctx.beginPath(); ctx.roundRect(pipe.x,0,pw,pipe.topH-10,4); ctx.fill();
+  // Top pipe cap
+  ctx.beginPath(); ctx.roundRect(pipe.x-6,pipe.topH-18,pw+12,18,[0,0,6,6]); ctx.fill();
+  // Bottom pipe body
+  ctx.beginPath(); ctx.roundRect(pipe.x,botY+10,pw,botH,[4]); ctx.fill();
+  // Bottom pipe cap
+  ctx.beginPath(); ctx.roundRect(pipe.x-6,botY,pw+12,18,[6,6,0,0]); ctx.fill();
+  // Shine
+  ctx.fillStyle='rgba(255,255,255,.18)';
+  ctx.beginPath(); ctx.roundRect(pipe.x+6,0,8,pipe.topH-10,3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(pipe.x+6,botY+10,8,botH-10,3); ctx.fill();
+}
+
+function drawBird(b) {
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.rotate(b.angle);
+
+  const r = BIRD_R();
+
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(2,r*.9,r*.7,r*.2,0,0,Math.PI*2); ctx.fill();
+
+  // Body
+  const bg = ctx.createRadialGradient(-r*.2,-r*.2,r*.1,0,0,r);
+  bg.addColorStop(0,'#FFE082'); bg.addColorStop(1,'#F9A825');
+  ctx.fillStyle=bg;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+
+  // Wing
+  const wingOff = Math.sin(b.wing)*r*.5;
+  ctx.fillStyle='#F57F17';
+  ctx.beginPath();
+  ctx.ellipse(-r*.2, wingOff, r*.55, r*.28, -0.4, 0, Math.PI*2);
+  ctx.fill();
+
+  // Eye white
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(r*.35,-r*.2,r*.3,0,Math.PI*2); ctx.fill();
+  // Pupil
+  ctx.fillStyle='#1a1a2e';
+  ctx.beginPath(); ctx.arc(r*.45,-r*.18,r*.15,0,Math.PI*2); ctx.fill();
+  // Eye shine
+  ctx.fillStyle='rgba(255,255,255,.8)';
+  ctx.beginPath(); ctx.arc(r*.5,-r*.24,r*.06,0,Math.PI*2); ctx.fill();
+
+  // Beak
+  ctx.fillStyle='#E65100';
+  ctx.beginPath(); ctx.moveTo(r*.6,-r*.08); ctx.lineTo(r*1.15,0); ctx.lineTo(r*.6,r*.12); ctx.closePath(); ctx.fill();
+
+  // Cheek blush
+  ctx.fillStyle='rgba(255,100,100,.25)';
+  ctx.beginPath(); ctx.arc(r*.15,r*.15,r*.2,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawScore() {
+  const s = score.toString();
+  ctx.save();
+  ctx.textAlign='center';
+  ctx.font=`900 ${Math.round(GW()*.11)}px 'Segoe UI',sans-serif`;
+  ctx.fillStyle='rgba(0,0,0,.2)';
+  ctx.fillText(s, GW()/2+2, GH()*.13+2);
+  ctx.fillStyle='#fff';
+  ctx.fillText(s, GW()/2, GH()*.13);
+  ctx.restore();
+}
+
+function drawHitEffect() {
+  if(hitEffect<=0) return;
+  ctx.fillStyle=`rgba(255,60,60,${hitEffect*.6})`;
+  ctx.fillRect(0,0,GW(),GH()-GROUND_H());
+  hitEffect -= 0.06;
+}
+
+function drawStatic() {
+  drawSky(); drawClouds(); drawGround();
+  if(bird) drawBird(bird);
+}
+
+// ── Physics & logic ──
+function jump() {
+  if(!running||paused||gameOver) return;
+  bird.vy = JUMP_V();
+  sfxJump();
+}
+
+function spawnPipe() {
+  if(pipes.length===0 || pipes[pipes.length-1].x < GW()-GW()*0.55) {
+    pipes.push(makePipe());
+  }
+}
+
+function checkCollision(b) {
+  const r  = BIRD_R() * 0.45;
+  const bx = b.x, by = b.y;
+
+  // Tran: nay lai, khong chet
+  if(by - r <= 0) {
+    bird.y  = r + 1;
+    bird.vy = Math.abs(bird.vy) * 0.4;
+  }
+
+  // Dat: CHET
+  if(by + r >= GH() - GROUND_H()) return true;
+
+  // Ong: chi chan, KHONG chet, flash nhe
+  for(const p of pipes){
+    const pw = PIPE_W();
+    if(bx + r > p.x && bx - r < p.x + pw){
+      if(by - r < p.topH || by + r > p.topH + GAP()){
+        if(by - r < p.topH) {
+          bird.y  = p.topH + r + 1;
+          bird.vy = Math.abs(bird.vy) * 0.3;
+        } else {
+          bird.y  = p.topH + GAP() - r - 1;
+          bird.vy = -Math.abs(bird.vy) * 0.3;
+        }
+        hitEffect = 0.35;
+        p.passed  = false;
+      }
+    }
+  }
+
+  return false;
+}
+
+function update(ts) {
+  if(!running||paused||gameOver) return;
+  const dt = Math.min((ts-lastTime)/16.67, 2.5); // cap delta
+  lastTime = ts;
+  frameCount++;
+
+  // Bird physics
+  bird.vy += GRAVITY()*dt;
+  bird.y  += bird.vy*dt;
+  bird.angle = Math.max(-0.45, Math.min(1.2, bird.vy * 0.045));
+
+  // Wing flap
+  bird.wing += bird.wingDir * 0.18 * dt;
+  if(Math.abs(bird.wing)>1) bird.wingDir*=-1;
+
+  // Ground scroll
+  groundX = (groundX + PIPE_SPEED()*dt) % (GW()/4);
+
+  // Pipes
+  spawnPipe();
+  for(const p of pipes) {
+    p.x -= PIPE_SPEED()*dt;
+    if(!p.passed && p.x+PIPE_W() < bird.x){
+      p.passed=true; score++;
+      sfxScore();
+    }
+  }
+  pipes = pipes.filter(p=>p.x>-PIPE_W()-10);
+
+  // Collision
+  if(checkCollision(bird)){
+    sfxDie();
+    hitEffect=1;
+    endGame();
+    return;
+  }
+
+  draw();
+  animId = requestAnimationFrame(update);
+}
+
+function draw() {
+  ctx.clearRect(0,0,GW(),GH());
+  drawSky();
+  drawClouds();
+  pipes.forEach(drawPipe);
+  drawGround();
+  drawBird(bird);
+  drawScore();
+  drawHitEffect();
+}
+
+// ── Game flow ──
+function startGame() {
+  best = loadBest();
+  initState();
+  bird = initBird();
+  running=true;
+  document.getElementById('start-overlay').style.display='none';
+  document.getElementById('gameover-overlay').style.display='none';
+  lastTime = performance.now();
+  animId = requestAnimationFrame(update);
+}
+
+function endGame() {
+  gameOver=true;
+  running=false;
+  if(score>best){ best=score; saveBest(best); }
+  cancelAnimationFrame(animId);
+  draw();
+  setTimeout(()=>{
+    document.getElementById('go-score').textContent=score;
+    document.getElementById('go-best').textContent=best;
+    document.getElementById('gameover-overlay').style.display='flex';
+  },600);
+}
+
+function togglePause() {
+  if(!running&&!paused) return;
+  paused=!paused;
+  const po=document.getElementById('pause-overlay');
+  if(paused){
+    po.style.display='flex';
+    cancelAnimationFrame(animId);
+  } else {
+    po.style.display='none';
+    lastTime=performance.now();
+    animId=requestAnimationFrame(update);
+  }
+}
+
+// ── Controls ──
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'||e.code==='ArrowUp'){
+    e.preventDefault();
+    if(!running&&!gameOver) startGame();
+    else jump();
+  }
+  if(e.code==='KeyP') togglePause();
+});
+
+canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(!running&&!gameOver){ startGame(); return; }
+  jump();
+},{passive:false});
+
+document.getElementById('btn-play').addEventListener('click',startGame);
+document.getElementById('btn-again').addEventListener('click',startGame);
+
+// ── Sound toggle ──
+document.getElementById('btn-sound').addEventListener('click',()=>{
+  soundOn=!soundOn;
+  document.getElementById('btn-sound').textContent=soundOn?'🔊':'🔇';
+});
+
+// ── Dark mode ──
+document.getElementById('btn-dark').addEventListener('click',()=>{
+  document.body.classList.toggle('dark');
+  document.getElementById('btn-dark').textContent=
+    document.body.classList.contains('dark')?'☀️':'🌙';
+});
+
+// ── Init ──
+best = loadBest();
+initState();
+drawStatic();
+</script>
+</body>
+</html>
