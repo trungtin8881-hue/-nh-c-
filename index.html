@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>CON CHIM – By Nguyễn Trung Tín</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -30,6 +30,8 @@
     font-family:'Segoe UI',system-ui,sans-serif;
     overflow:hidden;
     touch-action:none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
   }
 
   /* DARK MODE */
@@ -50,6 +52,8 @@
     border-radius:16px;
     box-shadow:0 8px 40px rgba(0,0,0,.5);
     touch-action:none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
   }
 
   /* TOP BAR */
@@ -161,6 +165,28 @@
     margin-top:10px;
     font-size:.85rem;
   }
+
+<script>
+// Polyfill roundRect for Safari/old browsers
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (typeof r === 'object') r = r[0] || 0;
+    r = Math.min(r || 0, Math.abs(w)/2, Math.abs(h)/2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.lineTo(x + w - r, y);
+    this.arcTo(x + w, y, x + w, y + r, r);
+    this.lineTo(x + w, y + h - r);
+    this.arcTo(x + w, y + h, x + w - r, y + h, r);
+    this.lineTo(x + r, y + h);
+    this.arcTo(x, y + h, x, y + h - r, r);
+    this.lineTo(x, y + r);
+    this.arcTo(x, y, x + r, y, r);
+    this.closePath();
+    return this;
+  };
+}
+</script>
 </style>
 </head>
 <body>
@@ -209,10 +235,18 @@ const ctx    = canvas.getContext('2d');
 
 // ── Responsive canvas ──
 function resize() {
-  const maxW = Math.min(window.innerWidth - 24, 400);
-  const maxH = Math.min(window.innerHeight - 100, 640);
-  canvas.width  = Math.min(maxW, maxH * 0.65);
-  canvas.height = canvas.width / 0.65;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Mobile: fill screen; Desktop: cap at 400x615
+  if(vw <= 480) {
+    canvas.width  = vw - 8;
+    canvas.height = vh - 90;
+  } else {
+    const maxW = Math.min(vw - 24, 400);
+    const maxH = Math.min(vh - 100, 640);
+    canvas.width  = Math.min(maxW, maxH * 0.65);
+    canvas.height = canvas.width / 0.65;
+  }
 }
 resize();
 window.addEventListener('resize', () => { resize(); if (!running) drawStatic(); });
@@ -348,25 +382,25 @@ function drawGround() {
   }
 }
 
+function fillRRect(x,y,w,h,r){
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fill();
+}
+
 function drawPipe(pipe) {
   const pw   = PIPE_W();
   const botY = pipe.topH + GAP();
   const botH = GH() - GROUND_H() - botY;
+  if(botH <= 0) return;
   const grad1= ctx.createLinearGradient(pipe.x,0,pipe.x+pw,0);
   grad1.addColorStop(0,'#27AE60'); grad1.addColorStop(.4,'#2ECC71'); grad1.addColorStop(1,'#1E8449');
   ctx.fillStyle=grad1;
-  // Top pipe body
-  ctx.beginPath(); ctx.roundRect(pipe.x,0,pw,pipe.topH-10,4); ctx.fill();
-  // Top pipe cap
-  ctx.beginPath(); ctx.roundRect(pipe.x-6,pipe.topH-18,pw+12,18,[0,0,6,6]); ctx.fill();
-  // Bottom pipe body
-  ctx.beginPath(); ctx.roundRect(pipe.x,botY+10,pw,botH,[4]); ctx.fill();
-  // Bottom pipe cap
-  ctx.beginPath(); ctx.roundRect(pipe.x-6,botY,pw+12,18,[6,6,0,0]); ctx.fill();
-  // Shine
+  fillRRect(pipe.x, 0, pw, Math.max(pipe.topH-10,0), 4);
+  fillRRect(pipe.x-6, pipe.topH-18, pw+12, 18, 4);
+  fillRRect(pipe.x, botY+10, pw, Math.max(botH-10,0), 4);
+  fillRRect(pipe.x-6, botY, pw+12, 18, 4);
   ctx.fillStyle='rgba(255,255,255,.18)';
-  ctx.beginPath(); ctx.roundRect(pipe.x+6,0,8,pipe.topH-10,3); ctx.fill();
-  ctx.beginPath(); ctx.roundRect(pipe.x+6,botY+10,8,botH-10,3); ctx.fill();
+  fillRRect(pipe.x+6, 0, 8, Math.max(pipe.topH-10,0), 3);
+  fillRRect(pipe.x+6, botY+10, 8, Math.max(botH-10,0), 3);
 }
 
 function drawBird(b) {
@@ -585,6 +619,12 @@ document.addEventListener('keydown',e=>{
   }
   if(e.code==='KeyP') togglePause();
 });
+
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(!running&&!gameOver){ startGame(); return; }
+  jump();
+},{passive:false});
 
 canvas.addEventListener('pointerdown',e=>{
   e.preventDefault();
